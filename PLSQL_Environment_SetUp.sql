@@ -81,7 +81,7 @@ CREATE TABLE salary_history(
     emp_id NUMBER,
     salary NUMBER(10,2),
     change_date DATE DEFAULT SYSDATE,
-    PRIMARY KEY (emp_id, change_date),
+    PRIMARY KEY (emp_id, salary, change_date),
     FOREIGN KEY (emp_id) REFERENCES employees(emp_id)
 );
 
@@ -109,5 +109,14 @@ INSERT INTO employee_projects VALUES (103, 201, 'Tester');
 INSERT INTO challenges VALUES (301, 'Basic SQL Query', 'Easy', 'Write a query to list all employees.');
 INSERT INTO challenges VALUES (302, 'Join Challenge', 'Medium', 'Write a query to list employees and their project roles.');
 INSERT INTO challenges VALUES (303, 'Aggregate Functions', 'Hard', 'Find the total salary of employees by department.');
+
+COMMIT;
+
+
+CREATE OR REPLACE TYPE bonus_type AS OBJECT (
+    emp_id NUMBER,
+    bonus_amount NUMBER
+);
+/
 
 COMMIT;

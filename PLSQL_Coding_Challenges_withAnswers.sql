@@ -593,6 +593,8 @@ WHERE table_name = 'EMPLOYEES';
 CREATE or REPLACE TRIGGER before_insert_hire_date
 BEFORE INSERT ON employees
 FOR EACH ROW
+DECLARE
+    --nothing to declare
 BEGIN
     :NEW.hire_date := SYSDATE;
 END;
@@ -620,10 +622,11 @@ WHERE table_name = 'SALARY_HISTORY';
 
 CREATE or REPLACE TRIGGER trg_salary_history
 AFTER UPDATE ON employees
-FOR EACH ROW    
+FOR EACH ROW   
+DECLARE
+    --nothing to declare
 BEGIN
     
-
     INSERT INTO salary_history (
         emp_id,
         salary,
@@ -648,11 +651,18 @@ select * from DEPARTMENTS;
 
 CREATE or REPLACE TRIGGER trg_prevent_delete
 BEFORE DELETE ON employees
-FOR EACH ROW    
+FOR EACH ROW 
+DECLARE 
+    v_department_name VARCHAR2(100);  
 BEGIN
     
-    if :OLD.department_id = 4 then
-        RAISE_APPLICATION_ERROR(-666, 'Cannot delete employee from management department');
+    SELECT department_name
+    INTO v_department_name
+    FROM departments
+    WHERE department_id = :OLD.department_id;
+
+    if v_department_name = 'Management' then
+        RAISE_APPLICATION_ERROR(-20000, 'Cannot delete employee from management department');
     END IF;
 
 END;
@@ -666,16 +676,143 @@ select * from EMPLOYEES WHERE emp_id = -1;
 
 --### **PL/SQL Collections**
 --26. **Use PL/SQL Table (Nested Table)**: Declare a nested table of employee names and print all values.
+/
+DECLARE
+    TYPE emp_name_table IS TABLE OF employees.emp_name%TYPE;
+    v_emp_names emp_name_table;
+BEGIN   
+    v_emp_names := emp_name_table('John Doe', 'Jane Smith', 'Alice Johnson');
+
+    FOR i IN v_emp_names.FIRST .. v_emp_names.LAST LOOP
+        DBMS_OUTPUT.PUT_LINE(v_emp_names(i));
+    END LOOP;
+END;
 
 --27. **Use VARRAY to Store Employee Bonuses**: Declare a VARRAY to store bonus amounts for employees and print all values.
 
+
+/
+DECLARE
+    TYPE bonus_array IS VARRAY(5) OF bonus_type;
+    v_bonuses bonus_array := bonus_array(
+        bonus_type(101, 1000),
+        bonus_type(102, 1500),
+        bonus_type(103, 2000)
+    );
+BEGIN
+    FOR i IN v_bonuses.FIRST .. v_bonuses.LAST LOOP
+        DBMS_OUTPUT.PUT_LINE('Bonus: ' || v_bonuses(i).emp_id || ' ' || v_bonuses(i).bonus_amount);
+    END LOOP;
+END;
+/
 ---
 
 --### **Dynamic SQL and Performance Optimization**
 --28. **Dynamic SQL for Table Updates**: Write a PL/SQL block that takes a table name and updates all employees' salaries dynamically.
 
+DECLARE
+    v_table_name VARCHAR2(100) := 'EMPLOYEES';
+    v_sql VARCHAR2(1000);
+BEGIN
+    v_sql := 'UPDATE ' || v_table_name || ' SET salary = salary * 1.10';
+    EXECUTE IMMEDIATE v_sql;
+
+    DBMS_OUTPUT.PUT_LINE('Updated salaries in table: ' || v_table_name);
+END;
+/
+
+select * from SALARY_HISTORY;
+/
+
+
 --29. **Optimize Bulk Update Using FORALL**: Use `FORALL` to update multiple employee salaries at once.
+
+
+
+DECLARE
+    TYPE bonus_array IS VARRAY(5) OF bonus_type;
+    v_bonuses bonus_array := bonus_array(
+        bonus_type(101, 1000),
+        bonus_type(102, 1500),
+        bonus_type(103, 2000)
+    );
+BEGIN
+    FORALL i IN v_bonuses.FIRST .. v_bonuses.LAST
+        UPDATE employees
+        SET salary = salary + v_bonuses(i).bonus_amount
+        WHERE emp_id = v_bonuses(i).emp_id;
+
+    DBMS_OUTPUT.PUT_LINE('Updated salaries using FORALL');
+END;
+/
+
+
+select * from SALARY_HISTORY;
 
 --30. **Use EXPLAIN PLAN to Optimize Query**: Write a PL/SQL block that uses `EXPLAIN PLAN` to analyze the performance of a SELECT query.
 
 ---
+
+
+--'PLAN_TABLE' is the default table for EXPLAIN PLAN
+DROP TABLE EXPLAIN_PLAN_TABLE CASCADE CONSTRAINTS PURGE;
+COMMIT;
+
+CREATE TABLE EXPLAIN_PLAN_TABLE (
+    statement_id    VARCHAR2(30),
+    plan_id         NUMBER,
+    timestamp       DATE,
+    remarks         VARCHAR2(4000),
+    operation       VARCHAR2(30),
+    options         VARCHAR2(255),
+    object_node     VARCHAR2(128),
+    object_owner    VARCHAR2(30),
+    object_name     VARCHAR2(30),
+    object_alias    VARCHAR2(65),
+    object_instance NUMBER,
+    object_type     VARCHAR2(30),
+    optimizer       VARCHAR2(255),
+    search_columns  NUMBER,
+    id              NUMBER,
+    parent_id       NUMBER,
+    depth           NUMBER,
+    position        NUMBER,
+    cost            NUMBER,
+    cardinality     NUMBER,
+    bytes           NUMBER,
+    other_tag       VARCHAR2(255),
+    partition_start VARCHAR2(255),
+    partition_stop  VARCHAR2(255),
+    partition_id    NUMBER,
+    other           LONG,
+    distribution    VARCHAR2(30),
+    cpu_cost        NUMBER,
+    io_cost         NUMBER,
+    temp_space      NUMBER,
+    access_predicates VARCHAR2(4000),
+    filter_predicates VARCHAR2(4000),
+    projection      VARCHAR2(4000),
+    time            NUMBER,
+    qblock_name     VARCHAR2(30),
+    other_xml       CLOB
+);
+COMMIT;
+
+DECLARE 
+    v_sql VARCHAR2(1000);
+    v_plan_table VARCHAR2(100) := 'EXPLAIN_PLAN_TABLE';
+BEGIN
+    v_sql := 'EXPLAIN PLAN 
+                SET STATEMENT_ID = ''TEST00''
+                INTO ' || v_plan_table || '
+                FOR
+                    SELECT * FROM employees WHERE emp_id = 101';
+    EXECUTE IMMEDIATE v_sql;
+
+    DBMS_OUTPUT.PUT_LINE('Execution plan generated for query: ' || v_sql);
+END;
+/
+
+
+select * from EXPLAIN_PLAN_TABLE 
+WHERE statement_id = 'TEST00';
