@@ -1,3 +1,4 @@
+ALTER SESSION SET CURRENT_SCHEMA = HR;
 
 --### **Basic PL/SQL Challenges**
 --1. **Hello PL/SQL**: Write a simple PL/SQL block that prints "Hello, PL/SQL!" using `DBMS_OUTPUT.PUT_LINE`.
@@ -348,31 +349,318 @@ END;
 --### **Exception Handling**
 --15. **Handle NO_DATA_FOUND Exception**: Write a PL/SQL block that attempts to retrieve an employee with a non-existent `emp_id` and handles the exception.
 
+DECLARE
+    v_emp_id NUMBER := 666;
+    v_row employees%ROWTYPE;
+BEGIN
+
+    SELECT
+        *
+        INTO v_row
+    FROM 
+        EMPLOYEES
+    WHERE emp_id = v_emp_id;
+
+EXCEPTION
+
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No employee found!');
+
+END;
+/
+
+
 --16. **Handle DUP_VAL_ON_INDEX Exception**: Insert a duplicate employee record and handle the unique constraint violation.
+
+DECLARE
+    v_emp_id NUMBER := 101;
+    v_emp_name VARCHAR2(100) := 'Satan';
+    v_dep_id NUMBER := 1;
+    v_sal NUMBER(10,2) := 100.00;
+    v_hire_date DATE := SYSDATE;
+
+BEGIN
+
+    INSERT INTO EMPLOYEES
+    VALUES (v_emp_id,v_emp_name,v_dep_id,v_sal,v_hire_date);
+
+EXCEPTION
+
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('duplicate employee...not updated');
+
+END;
+/
+
 
 --17. **Handle TOO_MANY_ROWS Exception**: Write a PL/SQL block that selects an employee name where multiple rows are returned, and handle the error.
 
+
+DECLARE
+    v_row employees%ROWTYPE;
+BEGIN
+
+    SELECT
+        *
+        INTO v_row
+    FROM 
+        EMPLOYEES
+    WHERE ROWNUM < 100;
+
+EXCEPTION
+
+    WHEN TOO_MANY_ROWS THEN
+        DBMS_OUTPUT.PUT_LINE('too many rows');
+
+END;
+/
+
+
 --18. **Handle INVALID_NUMBER Exception**: Write a block that tries to insert a non-numeric value into a salary column and handles the exception.
+
+DESCRIBE Salary;
+
+
+BEGIN
+
+    UPDATE employees SET salary = 'Monies'
+    WHERE emp_id = 101;
+
+EXCEPTION
+
+    WHEN INVALID_NUMBER THEN
+        DBMS_OUTPUT.PUT_LINE('THAT IS NOT A NUMBER');
+
+END;
+/
 
 ---
 
 --### **Stored Procedures and Functions**
 --19. **Create a Procedure to Update Salary**: Write a stored procedure `update_salary` that takes `emp_id` and `percentage` as input and updates the salary.
 
+CREATE OR REPLACE PROCEDURE update_salary (
+   p_emp_id IN employees.emp_id%TYPE,
+   p_percentage IN NUMBER
+) AS 
+    v_row employees%ROWTYPE;
+BEGIN
+
+    select 
+        * into v_row
+    from employees
+    WHERE emp_id = p_emp_id;
+
+    DBMS_OUTPUT.PUT_LINE('before: ' || v_row.EMP_ID || ', ' || v_row.EMP_NAME || ', '|| v_row.SALARY);
+
+    --must be greater than zero
+    IF p_percentage <= 0 THEN
+        DBMS_OUTPUT.PUT_LINE('percent less than or equal to zero');
+        RETURN;
+    END IF;
+
+    UPDATE employees
+    SET salary = salary * ( (100 + p_percentage) / 100)
+    WHERE emp_id = p_emp_id;
+
+    COMMIT;
+
+    select 
+        * into v_row
+    from employees
+    WHERE emp_id = p_emp_id;
+
+    DBMS_OUTPUT.PUT_LINE('after: ' || v_row.EMP_ID || ', ' || v_row.EMP_NAME || ', '|| v_row.SALARY);
+
+END update_salary;
+/
+
+EXEC update_salary(101,5);
+EXEC update_salary(101,0);
+
+
+
 --20. **Create a Function to Get Employee Salary**: Write a function `get_salary` that returns the salary of an employee given `emp_id`.
+
+CREATE or REPLACE FUNCTION get_salary (
+    p_emp_id IN employees.emp_id%TYPE
+) RETURN NUMBER 
+AS
+    v_salary employees.salary%TYPE;
+BEGIN
+
+   SELECT salary INTO v_salary FROM employees WHERE emp_id = p_emp_id;
+   DBMS_OUTPUT.PUT_LINE(v_salary);
+   RETURN v_salary;
+
+EXCEPTION
+
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('NOT FOUND');
+        DBMS_OUTPUT.PUT_LINE('Error message: ' || SQLERRM);
+        
+END;
+/
+
+SELECT get_salary(101) FROM dual;
 
 --21. **Create a Procedure to Hire an Employee**: Create a stored procedure that inserts a new employee into the `employees` table.
 
+
+CREATE OR REPLACE PROCEDURE hire_person (
+    v_emp_name VARCHAR2,
+    v_dep_id number,
+    v_salary number
+) AS 
+    v_row employees%ROWTYPE;
+    v_hire_date DATE := SYSDATE;
+    v_emp_id employees.EMP_ID%TYPE;
+BEGIN
+
+
+    --must be greater than zero
+    IF v_salary <= 0 THEN
+        DBMS_OUTPUT.PUT_LINE('percent less than or equal to zero');
+        RETURN;
+    END IF;
+
+    select 
+        MAX(employees.EMP_ID) + 1
+        INTO v_emp_id
+    from EMPLOYEES;
+
+
+    INSERT INTO EMPLOYEES
+    --(emp_id,emp_name,department_id,salary,hire_date)
+    VALUES (v_emp_id,v_emp_name,v_dep_id,v_salary,v_hire_date);
+
+    COMMIT;
+
+    select 
+        * into v_row
+    from employees
+    WHERE emp_name = v_emp_name
+    and hire_date = v_hire_date;
+
+    DBMS_OUTPUT.PUT_LINE('hired: ' || v_row.EMP_ID || ', ' || v_row.EMP_NAME || ', '|| v_row.SALARY);
+
+END hire_person;
+/
+
+EXEC hire_person('Dave',1,100);
+
+select * from EMPLOYEES;
+
+
 --22. **Function to Count Employees in a Department**: Write a function that takes a `department_id` as input and returns the count of employees in that department.
+
+
+CREATE or REPLACE FUNCTION dep_count (
+    p_dep_id IN NUMBER
+) RETURN NUMBER 
+AS
+    COUNT_ NUMBER;
+BEGIN
+
+   SELECT COUNT(*) INTO COUNT_ FROM EMPLOYEES WHERE DEPARTMENT_ID = p_dep_id;
+   DBMS_OUTPUT.PUT_LINE(COUNT_);
+   RETURN COUNT_;
+
+EXCEPTION
+
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('NOT FOUND');
+        DBMS_OUTPUT.PUT_LINE('Error message: ' || SQLERRM);
+        
+END;
+/
+
+
+select dep_count(1) from dual;
+select dep_count(2) from dual;
 
 ---
 
 --### **Triggers**
 --23. **Before Insert Trigger for Employees**: Write a trigger that automatically sets the `hire_date` to `SYSDATE` before inserting a new employee.
 
+
+SELECT owner, table_name
+FROM all_tables
+WHERE table_name = 'EMPLOYEES';
+
+
+CREATE or REPLACE TRIGGER before_insert_hire_date
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+    :NEW.hire_date := SYSDATE;
+END;
+/
+
+BEGIN
+    INSERT INTO EMPLOYEES
+    (emp_id,emp_name,department_id,salary)
+    VALUES (666,'new guy',1,100);
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error inserting employee: ' || SQLERRM);
+END;
+/
+
+select * from EMPLOYEES;
+
 --24. **After Insert Trigger for Salary Log**: Create a trigger that logs every new salary change into a `salary_history` table.
 
+
+SELECT owner, table_name
+FROM all_tables
+WHERE table_name = 'SALARY_HISTORY';
+
+
+CREATE or REPLACE TRIGGER trg_salary_history
+AFTER UPDATE ON employees
+FOR EACH ROW    
+BEGIN
+    
+
+    INSERT INTO salary_history (
+        emp_id,
+        salary,
+        change_date
+    ) VALUES (
+        :NEW.emp_id,
+        :NEW.salary,
+        SYSDATE
+    );
+
+    DBMS_OUTPUT.PUT_LINE(:NEW.emp_id || ' ' || :NEW.salary || ' ' || SYSDATE || ' '  );
+
+END;
+/
+
+EXEC update_salary(101,5);
+select * from SALARY_HISTORY;
+
 --25. **Prevent Deletion of Certain Employees**: Write a trigger that prevents employees from being deleted if they belong to the management department.
+
+select * from DEPARTMENTS;
+
+CREATE or REPLACE TRIGGER trg_prevent_delete
+BEFORE DELETE ON employees
+FOR EACH ROW    
+BEGIN
+    
+    if :OLD.department_id = 4 then
+        RAISE_APPLICATION_ERROR(-666, 'Cannot delete employee from management department');
+    END IF;
+
+END;
+/
+
+INSERT INTO employees VALUES (-1, 'Mr.Smith', 4, 75000, SYSDATE);
+DELETE FROM employees WHERE emp_id = -1;
+select * from EMPLOYEES WHERE emp_id = -1;
 
 ---
 

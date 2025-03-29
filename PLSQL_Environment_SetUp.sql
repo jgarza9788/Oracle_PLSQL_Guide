@@ -1,3 +1,36 @@
+
+ALTER SESSION SET CURRENT_SCHEMA = HR;
+
+DECLARE
+    -- List of table names to drop
+    TYPE table_list IS TABLE OF VARCHAR2(100);
+    tables_to_drop table_list := table_list(
+        'solutions',
+        'challenges',
+        'employee_projects',
+        'projects',
+        'departments',
+        'employees',
+        'salary_history'
+    );
+BEGIN
+    -- Loop through the list of tables
+    FOR i IN tables_to_drop.FIRST .. tables_to_drop.LAST LOOP
+        BEGIN
+            -- Drop the table dynamically
+            EXECUTE IMMEDIATE 'DROP TABLE ' || tables_to_drop(i) || ' CASCADE CONSTRAINTS PURGE';
+            DBMS_OUTPUT.PUT_LINE('Dropped table: ' || tables_to_drop(i));
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- Handle errors (e.g., table does not exist)
+                DBMS_OUTPUT.PUT_LINE('Error dropping table: ' || tables_to_drop(i) || ' - ' || SQLERRM);
+        END;
+    END LOOP;
+END;
+/
+
+COMMIT;
+
 CREATE TABLE employees (
     emp_id NUMBER PRIMARY KEY,
     emp_name VARCHAR2(100) NOT NULL,
@@ -44,10 +77,23 @@ CREATE TABLE solutions (
     FOREIGN KEY (emp_id) REFERENCES employees(emp_id)
 );
 
+CREATE TABLE salary_history(
+    emp_id NUMBER,
+    salary NUMBER(10,2),
+    change_date DATE DEFAULT SYSDATE,
+    PRIMARY KEY (emp_id, change_date),
+    FOREIGN KEY (emp_id) REFERENCES employees(emp_id)
+);
+
+
+
+COMMIT;
+
 -- Insert sample data for testing challenges
 INSERT INTO departments VALUES (1, 'IT');
 INSERT INTO departments VALUES (2, 'HR');
 INSERT INTO departments VALUES (3, 'Finance');
+INSERT INTO departments VALUES (4, 'Management');
 
 INSERT INTO employees VALUES (101, 'Alice Smith', 1, 75000, SYSDATE);
 INSERT INTO employees VALUES (102, 'Bob Johnson', 2, 60000, SYSDATE);
