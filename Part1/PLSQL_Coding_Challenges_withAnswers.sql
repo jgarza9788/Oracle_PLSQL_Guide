@@ -1,3 +1,4 @@
+
 ALTER SESSION SET CURRENT_SCHEMA = HR;
 
 --### **Basic PL/SQL Challenges**
