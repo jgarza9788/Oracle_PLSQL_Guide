@@ -68,7 +68,8 @@ END;
 
 --### **Working with Tables (Using PLSQL_Environment_SetUp.sql Tables)**
 --6. **Insert Employee**: Write a PL/SQL block that inserts a new employee into the `employees` table.
-select * from EMPLOYEES;
+
+select * from HR.EMPLOYEES;
 DESC employees;
 
 
